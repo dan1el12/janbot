@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 import pytz
 import re
-from google import genai
+import google.generativeai as genai
 
 zona_horaria = pytz.timezone("America/Lima")
 fecha_actual = datetime.now(zona_horaria).strftime("%A, %d de %B de %Y - %H:%M")
