@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 import pytz
 import re
+import google.generativeai as genai
 
 zona_horaria = pytz.timezone("America/Lima")
 fecha_actual = datetime.now(zona_horaria).strftime("%A, %d de %B de %Y - %H:%M")
@@ -60,19 +61,17 @@ def revertir_emojis_a_texto(respuesta, guild):
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
-CHUTES_API_KEY = os.getenv("CHUTES_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-pro")
 
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 tree = discord.app_commands.CommandTree(client)
 
-async def ask_deepseek(prompt, user_id, historial_usuario):
-    url = "https://llm.chutes.ai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {CHUTES_API_KEY}",
-        "Content-Type": "application/json"
-    }
+async def ask_gemini(prompt, user_id, historial_usuario):
 
     personalidad_extra = generar_contexto_usuario(user_id)
     if personalidad_extra:
@@ -200,26 +199,15 @@ async def ask_deepseek(prompt, user_id, historial_usuario):
         {"role": "user", "content": prompt}
     ]
 
-    payload = {
-        "model": "deepseek-ai/DeepSeek-V3-0324",
-        "messages": historial_formateado,
-        "max_tokens": 1000,
-        "temperature": 0.6,
-        "stream": False
-    }
+    response = model.generate_content(system_prompt)
+    return response.text.strip()
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            if resp.status != 200:
-                raise Exception(f"Error {resp.status}: {await resp.text()}")
-            data = await resp.json()
-            return data["choices"][0]["message"]["content"]
 
 
 @client.event
 async def on_ready():
     print(f'Bot conectado como {client.user}')
-    activity = discord.CustomActivity(name="Jugando con tu corazón...")  # ← Estado personalizado
+    activity = discord.CustomActivity(name="Jugando con tu corazón...")
     await client.change_presence(activity=activity)
     await tree.sync()
 
@@ -227,6 +215,8 @@ async def on_ready():
 async def opinar(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
     memoria = cargar_memoria()
+    historial = cargar_historial()
+    historial_usuario = historial.get(str(interaction.channel.id), [])
     mensajes = []
     async for msg in interaction.channel.history(limit=15):
         if msg.author.bot:
@@ -253,8 +243,7 @@ async def opinar(interaction: discord.Interaction):
         f"{contexto_memoria}\n\n"
         "Dime lo que piensas tú, como Janine, sobre todo esto que se ha hablado. Respóndelo como lo harías en un chat con tus amigos."
     )
-    historial_usuario = []
-    respuesta = await ask_deepseek(prompt, interaction.user.id, historial_usuario)
+    respuesta = await ask_gemini(prompt, interaction.user.id, historial_usuario)
     respuesta = reemplazar_emojis_personalizados(respuesta, interaction.guild)
     await interaction.followup.send(respuesta)
 
@@ -301,12 +290,10 @@ async def on_message(message):
 
         try:
             async with message.channel.typing():
-                respuesta = await ask_deepseek(prompt, message.author.id, historial_canal)
+                respuesta = await ask_gemini(prompt, message.author.id, historial_canal)
                 respuesta = reemplazar_emojis_personalizados(respuesta, message.guild)
-
                 respuesta_para_guardar = revertir_emojis_a_texto(respuesta, message.guild)
 
-                # Guardar mensajes en el historial grupal con los nombres
                 historial_canal.append({"role": "user", "content": f"{message.author.display_name}: {prompt}"})
                 historial_canal.append({"role": "assistant", "content": respuesta_para_guardar})
 
@@ -320,6 +307,5 @@ async def on_message(message):
 
         except Exception as e:
             await message.reply(f"Error en la respuesta: {e}", mention_author=True)
-
 
 client.run(TOKEN)
