@@ -199,7 +199,12 @@ async def ask_gemini(prompt, user_id, historial_usuario):
         {"role": "user", "content": prompt}
     ]
 
-    response = model.generate_content(system_prompt)
+    mensajes_gemini = [
+    {"role": msg["role"], "parts": [msg["content"]]} for msg in historial_formateado
+    ]
+
+    response = model.generate_content(mensajes_gemini)
+
     return response.text.strip()
 
 
