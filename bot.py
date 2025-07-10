@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 import pytz
 import re
-import google.generativeai as genai
+from google import genai
 
 zona_horaria = pytz.timezone("America/Lima")
 fecha_actual = datetime.now(zona_horaria).strftime("%A, %d de %B de %Y - %H:%M")
@@ -64,7 +64,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-pro")
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 intents = discord.Intents.default()
 intents.message_content = True
