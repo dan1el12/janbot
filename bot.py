@@ -193,19 +193,28 @@ async def ask_gemini(prompt, user_id, historial_usuario):
     )
 
 
-    historial_formateado = [
-        {"role": "system", "content": system_prompt}
-    ] + historial_usuario[-MAX_MENSAJES_HISTORIAL:] + [
-        {"role": "user", "content": prompt}
-    ]
-
     mensajes_gemini = [
-    {"role": msg["role"], "parts": [msg["content"]]} for msg in historial_formateado
+        {"role": "user", "parts": [system_prompt]}  # se agrega el prompt inicial como mensaje de usuario
     ]
 
-    response = model.generate_content(mensajes_gemini)
+    # Se añade el historial anterior (máximo 5 turnos previos)
+    for msg in historial_usuario[-MAX_MENSAJES_HISTORIAL * 2:]:
+        rol = msg["role"]
+        contenido = msg["content"]
+        if rol == "user":
+            mensajes_gemini.append({"role": "user", "parts": [contenido]})
+        elif rol == "assistant":
+            mensajes_gemini.append({"role": "model", "parts": [contenido]})
 
-    return response.text.strip()
+    # Agregamos el nuevo mensaje del usuario
+    mensajes_gemini.append({"role": "user", "parts": [prompt]})
+
+    # Enviar la solicitud a Gemini
+    try:
+        response = model.generate_content(mensajes_gemini)
+        return response.text.strip()
+    except Exception as e:
+        return f"Error generando respuesta: {e}"
 
 
 
