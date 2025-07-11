@@ -211,10 +211,18 @@ async def ask_gemini(prompt, user_id, historial_usuario):
 
     # Enviar la solicitud a Gemini
     try:
-        response = model.generate_content(mensajes_gemini)
+        response = model.generate_content(
+            mensajes_gemini,
+            generation_config={
+                "temperature": 0.9,
+                "top_p": 0.95,
+                "max_output_tokens": 1024
+            }
+        )
         return response.text.strip()
     except Exception as e:
         return f"Error generando respuesta: {e}"
+
 
 
 
