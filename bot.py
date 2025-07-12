@@ -60,7 +60,7 @@ def revertir_emojis_a_texto(respuesta, guild):
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
-ATLASCLOUD_API_KEY = os.getenv("ATLASCLOUD_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -68,9 +68,9 @@ client = discord.Client(intents=intents)
 tree = discord.app_commands.CommandTree(client)
 
 async def ask_deepseek(prompt, user_id, historial_usuario):
-    url = "https://api.atlascloud.ai/v1/chat/completions"
+    url = "https://openrouter.ai/api/v1"
     headers = {
-        "Authorization": f"Bearer {ATLASCLOUD_API_KEY}",
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json"
     }
 
