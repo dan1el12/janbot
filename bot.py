@@ -201,7 +201,7 @@ async def ask_deepseek(prompt, user_id, historial_usuario):
     ]
 
     payload = {
-        "model": "deepseek-ai/DeepSeek-V3-0324",
+        "model": "deepseek/deepseek-chat-v3-0324:free",
         "messages": historial_formateado,
         "max_tokens": 1000,
         "temperature": 0.6,
