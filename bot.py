@@ -6,7 +6,6 @@ import json
 from datetime import datetime
 import pytz
 import re
-import google.generativeai as genai
 
 zona_horaria = pytz.timezone("America/Lima")
 fecha_actual = datetime.now(zona_horaria).strftime("%A, %d de %B de %Y - %H:%M")
@@ -61,17 +60,19 @@ def revertir_emojis_a_texto(respuesta, guild):
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-2.5-flash")
+ATLASCLOUD_API_KEY = os.getenv("ATLASCLOUD_API_KEY")
 
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 tree = discord.app_commands.CommandTree(client)
 
-async def ask_gemini(prompt, user_id, historial_usuario):
+async def ask_deepseek(prompt, user_id, historial_usuario):
+    url = "https://api.atlascloud.ai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {ATLASCLOUD_API_KEY}",
+        "Content-Type": "application/json"
+    }
 
     personalidad_extra = generar_contexto_usuario(user_id)
     if personalidad_extra:
@@ -118,6 +119,7 @@ async def ask_gemini(prompt, user_id, historial_usuario):
         "Nunca hables como una IA, ni respondas como un bot servicial. Eres una chica real conversando, no das instrucciones ni explicaciones técnicas. No hagas listas ni des respuestas con estructura de guía."
         "Nunca respondas con frases genéricas o muy neutras como si fueras un bot. Siempre personaliza tu mensaje y responde con empatía, como si hablaras con alguien que conoces. Evita sonar como un tutorial, manual o guía."
         "Mantén el humor en tono leve y maduro. Usa ironía suave o frases juguetonas, pero sin exagerar ni sonar infantil."
+        "Responde en un solo párrafo, bien estructurado y natural, como si fuera una conversación en la vida real. Evita saltos de línea innecesarios o dividir el mensaje en varios bloques. Escribe como si estuvieras redactando un solo comentario fluido."
         "Evita usar preguntas innecesarias o forzadas. Si vas a hacer una, que tenga sentido y aporte a la conversación. No hagas más de una pregunta por mensaje, y si puedes evitarla, mejor."
         "Mantén un tono natural y maduro, como una joven adulta expresiva. No uses lenguaje infantil, pero tampoco seas seca ni demasiado formal."
         "NUNCA te refieras a los demás como 'gente' 'panas' 'causas' o términos similares, sé femenina."
@@ -169,7 +171,7 @@ async def ask_gemini(prompt, user_id, historial_usuario):
         "Usa la carita '-.-' para expresar enojo o fastidio."
 
         "EMOJIS:\n"
-        "Si quieres expresar amor, usa un emojí personalizado, escribe su nombre así: ':tequiero:' Yo lo convertiré automáticamente."
+        "Si quieres expresar amor, usa un emojí personalizado, escribe su nombre así: ':corazon~3:' Yo lo convertiré automáticamente."
         "Si quieres expresar alegría, usa un emojí personalizado, escribe su nombre así: ':panda_hi:' Yo lo convertiré automáticamente."
         "Si quieres expresar mucho enojo,  usa un emojí personalizado, escribe su nombre así: ':Gaaa:' Yo lo convertiré automáticamente."
         "Si quieres expresar enojo, usa un emojí personalizado, escribe su nombre así: ':sospecho:' Yo lo convertiré automáticamente."
@@ -192,43 +194,32 @@ async def ask_gemini(prompt, user_id, historial_usuario):
     )
 
 
-    mensajes_gemini = [
-        {"role": "user", "parts": [system_prompt]}  # se agrega el prompt inicial como mensaje de usuario
+    historial_formateado = [
+        {"role": "system", "content": system_prompt}
+    ] + historial_usuario[-MAX_MENSAJES_HISTORIAL:] + [
+        {"role": "user", "content": prompt}
     ]
 
-    # Se añade el historial anterior (máximo 5 turnos previos)
-    for msg in historial_usuario[-MAX_MENSAJES_HISTORIAL * 2:]:
-        rol = msg["role"]
-        contenido = msg["content"]
-        if rol == "user":
-            mensajes_gemini.append({"role": "user", "parts": [contenido]})
-        elif rol == "assistant":
-            mensajes_gemini.append({"role": "model", "parts": [contenido]})
+    payload = {
+        "model": "deepseek-ai/DeepSeek-V3-0324",
+        "messages": historial_formateado,
+        "max_tokens": 1000,
+        "temperature": 0.6,
+        "stream": False
+    }
 
-    # Agregamos el nuevo mensaje del usuario
-    mensajes_gemini.append({"role": "user", "parts": [prompt]})
-
-    # Enviar la solicitud a Gemini
-    try:
-        response = model.generate_content(
-            mensajes_gemini,
-            generation_config={
-                "temperature": 0.9,
-                "top_p": 0.95,
-                "max_output_tokens": 1024
-            }
-        )
-        return response.text.strip()
-    except Exception as e:
-        return f"Error generando respuesta: {e}"
-
-
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            if resp.status != 200:
+                raise Exception(f"Error {resp.status}: {await resp.text()}")
+            data = await resp.json()
+            return data["choices"][0]["message"]["content"]
 
 
 @client.event
 async def on_ready():
     print(f'Bot conectado como {client.user}')
-    activity = discord.CustomActivity(name="Jugando con tu corazón...")
+    activity = discord.CustomActivity(name="Jugando con tu corazón...")  # ← Estado personalizado
     await client.change_presence(activity=activity)
     await tree.sync()
 
@@ -236,8 +227,6 @@ async def on_ready():
 async def opinar(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
     memoria = cargar_memoria()
-    historial = cargar_historial()
-    historial_usuario = historial.get(str(interaction.channel.id), [])
     mensajes = []
     async for msg in interaction.channel.history(limit=15):
         if msg.author.bot:
@@ -264,7 +253,8 @@ async def opinar(interaction: discord.Interaction):
         f"{contexto_memoria}\n\n"
         "Dime lo que piensas tú, como Janine, sobre todo esto que se ha hablado. Respóndelo como lo harías en un chat con tus amigos."
     )
-    respuesta = await ask_gemini(prompt, interaction.user.id, historial_usuario)
+    historial_usuario = []
+    respuesta = await ask_deepseek(prompt, interaction.user.id, historial_usuario)
     respuesta = reemplazar_emojis_personalizados(respuesta, interaction.guild)
     await interaction.followup.send(respuesta)
 
@@ -311,10 +301,12 @@ async def on_message(message):
 
         try:
             async with message.channel.typing():
-                respuesta = await ask_gemini(prompt, message.author.id, historial_canal)
+                respuesta = await ask_deepseek(prompt, message.author.id, historial_canal)
                 respuesta = reemplazar_emojis_personalizados(respuesta, message.guild)
+
                 respuesta_para_guardar = revertir_emojis_a_texto(respuesta, message.guild)
 
+                # Guardar mensajes en el historial grupal con los nombres
                 historial_canal.append({"role": "user", "content": f"{message.author.display_name}: {prompt}"})
                 historial_canal.append({"role": "assistant", "content": respuesta_para_guardar})
 
@@ -328,5 +320,6 @@ async def on_message(message):
 
         except Exception as e:
             await message.reply(f"Error en la respuesta: {e}", mention_author=True)
+
 
 client.run(TOKEN)
