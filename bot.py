@@ -219,7 +219,7 @@ async def ask_deepseek(prompt, user_id, historial_usuario):
         "Usa la carita '-.-' para expresar enojo o fastidio."
 
         "EMOJIS:\n"
-        "Si quieres expresar amor, usa un emojí personalizado, escribe su nombre así: ':corazon~3:' Yo lo convertiré automáticamente."
+        "Si quieres expresar amor, usa un emojí personalizado, escribe su nombre así: ':tequiero:' Yo lo convertiré automáticamente."
         "Si quieres expresar alegría, usa un emojí personalizado, escribe su nombre así: ':panda_hi:' Yo lo convertiré automáticamente."
         "Si quieres expresar mucho enojo,  usa un emojí personalizado, escribe su nombre así: ':Gaaa:' Yo lo convertiré automáticamente."
         "Si quieres expresar enojo, usa un emojí personalizado, escribe su nombre así: ':sospecho:' Yo lo convertiré automáticamente."
