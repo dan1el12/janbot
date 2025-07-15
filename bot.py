@@ -8,12 +8,42 @@ import pytz
 import re
 
 zona_horaria = pytz.timezone("America/Lima")
-fecha_actual = datetime.now(zona_horaria).strftime("%A, %d de %B de %Y - %H:%M")
-
 
 MEMORIA_ARCHIVO = "memoria.json"
 HISTORIAL_ARCHIVO = "historial.json"
 MAX_MENSAJES_HISTORIAL = 5
+
+def obtener_fecha_actual():
+    dias = {
+        "Monday": "lunes",
+        "Tuesday": "martes",
+        "Wednesday": "miércoles",
+        "Thursday": "jueves",
+        "Friday": "viernes",
+        "Saturday": "sábado",
+        "Sunday": "domingo"
+    }
+    meses = {
+        "January": "enero",
+        "February": "febrero",
+        "March": "marzo",
+        "April": "abril",
+        "May": "mayo",
+        "June": "junio",
+        "July": "julio",
+        "August": "agosto",
+        "September": "septiembre",
+        "October": "octubre",
+        "November": "noviembre",
+        "December": "diciembre"
+    }
+
+    ahora = datetime.now(pytz.timezone("America/Lima"))
+    dia = dias[ahora.strftime("%A")]
+    mes = meses[ahora.strftime("%B")]
+    return f"{dia.capitalize()}, {ahora.day} de {mes} de {ahora.year} - {ahora.strftime('%H:%M')}"
+
+fecha_actual = obtener_fecha_actual()
 
 def cargar_memoria():
     if not os.path.exists(MEMORIA_ARCHIVO):
